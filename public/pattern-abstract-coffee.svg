@@ -1,0 +1,28 @@
+<!-- public/pattern-abstract-coffee.svg (200x200, seamless, orgánico) -->
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+  <rect width="200" height="200" fill="transparent"/>
+  <g stroke="#f4eee6" stroke-width="1.6" fill="none" opacity=".26" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M30 60 C 45 50, 65 50, 80 60 S 115 70, 130 60 S 160 50, 170 60" />
+    <path d="M32 120 C 48 108, 70 110, 88 120 S 122 132, 138 120 S 166 106, 170 116" opacity=".24" />
+    <path d="M46 36 C 52 30, 58 30, 64 36" />
+    <path d="M138 42 C 144 36, 150 36, 156 42" />
+    <path d="M40 156 C 48 150, 56 150, 62 156" />
+    <path d="M128 164 C 134 158, 142 158, 148 164" />
+    <path d="M92 86 q 8 -10 16 0" />
+    <path d="M108 102 q 8 10 16 0" opacity=".24" />
+    <path d="M78 132 q 7 -9 14 0" />
+    <path d="M120 74 q 7 -9 14 0" />
+    <path d="M82 44 c 3 -6 9 -6 12 -12" opacity=".35"/>
+    <path d="M154 124 c 3 -6 9 -6 12 -12" opacity=".35"/>
+    <path d="M52 106 c 3 -6 9 -6 12 -12" opacity=".35"/>
+    <g opacity=".22">
+      <circle cx="50" cy="82" r="1.6"/>
+      <circle cx="150" cy="86" r="1.6"/>
+      <circle cx="96" cy="154" r="1.6"/>
+      <circle cx="116" cy="52" r="1.6"/>
+      <circle cx="72" cy="104" r="1.6"/>
+      <circle cx="170" cy="148" r="1.6"/>
+      <circle cx="34" cy="122" r="1.6"/>
+    </g>
+  </g>
+</svg>
