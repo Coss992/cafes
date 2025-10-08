@@ -354,3 +354,65 @@ body::after { content: none !important; display: none !important; }
   background: linear-gradient(to bottom, rgba(255,255,255,.38), transparent);
   pointer-events:none;
 }
+
+/* ====== Efecto "brewing" para el botón Tomar ====== */
+
+/* Brillo diagonal en movimiento + barrita de progreso inferior */
+.cafe-tile-brewing {
+  position: relative;
+  filter: saturate(1.08) brightness(1.05);
+  overflow: hidden;
+}
+
+/* Sheen diagonal que cruza el botón */
+.cafe-tile-brewing::before {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  background:
+    linear-gradient(120deg, transparent 45%, rgba(255,255,255,.35) 50%, transparent 55%);
+  background-size: 220% 220%;
+  animation: cafe-sheen 1.2s linear infinite;
+  pointer-events: none;
+}
+
+/* Progreso en la base del botón (se llena una vez por ciclo de café) */
+.cafe-tile-brewing::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: calc(100% - 10px);
+  bottom: 10px;
+  height: 5px;
+  border-radius: 9999px;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,.6), rgba(255,255,255,.95));
+  box-shadow: 0 2px 8px rgba(0,0,0,.18), 0 -1px 0 rgba(0,0,0,.15) inset;
+  animation: brew-fill 2.57s ease forwards; /* ≈ 1500 + 800 + 120 + 120 + 30 */
+  pointer-events: none;
+}
+
+@keyframes cafe-sheen {
+  0%   { background-position: 0% 0%; opacity: .0; }
+  10%  { opacity: .45; }
+  50%  { background-position: 100% 100%; opacity: .6; }
+  90%  { opacity: .35; }
+  100% { background-position: 200% 200%; opacity: .0; }
+}
+
+@keyframes brew-fill {
+  from { right: calc(100% - 10px); }
+  to   { right: 10px; }
+}
+
+/* Icono con giro suave mientras se prepara */
+.brew-spin {
+  animation: brew-icon 0.9s ease-in-out infinite;
+  transform-origin: 50% 56%;
+}
+
+@keyframes brew-icon {
+  0%   { transform: rotate(0deg) translateZ(0); }
+  50%  { transform: rotate(10deg); }
+  100% { transform: rotate(0deg); }
+}

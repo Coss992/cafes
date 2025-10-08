@@ -77,15 +77,12 @@ async function fetchBalance(uid: number): Promise<number | null> {
 }
 
 export default function Page() {
-  // —— fase de arranque para evitar flicker ——
-  const [booting, setBooting] = useState(true);
-
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [placed, setPlaced] = useState(false);
   const [mode, setMode] = useState<Mode>("login");
-  const [btnMsg, setBtnMsg] = useState<string | null>(null); // mensaje temporal del botón
+  const [btnMsg, setBtnMsg] = useState<string | null>(null);
 
   // Datos del usuario
   const [userName, setUserName] = useState<string>("");
@@ -106,7 +103,7 @@ export default function Page() {
   }, []);
 
   // ===== Geometría cafetera =====
-  const baseW = 512;
+  const baseW = 420;
   const scale = machineW / baseW;
 
   const BAY = { x: 135, y: 130, w: 150, h: 180 };
@@ -158,46 +155,15 @@ export default function Page() {
   const [spawnX, setSpawnX] = useState(0);
   const [cupKey, setCupKey] = useState(0);
 
+  // “Brewing” = cualquier fase de la animación activa
+  const brewing = pouring || exiting || spawning;
+
   // === SHATTER (login fail) ===
   const [shattered, setShattered] = useState(false);
   const [pieces, setPieces] = useState<
     { id: number; dx: number; dy: number; rot: number; delay: number; size: number }[]
   >([]);
   const [piecesGo, setPiecesGo] = useState(false);
-
-  // ========= Comprobación de sesión en el arranque =========
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/session", { cache: "no-store" });
-        const data = await res.json().catch(() => null);
-        if (!data?.ok || !data?.user?.id) {
-          // sin sesión → mostramos login
-          if (!cancelled) setMode("login");
-        } else {
-          // sesión válida → cargamos usuario y balance, y vamos directo al panel
-          const uid: number = data.user.id;
-          if (!cancelled) {
-            setUserId(uid);
-            setUserName(String(data.user.login || "").toUpperCase());
-            const b = await fetchBalance(uid);
-            if (b != null) setBalance(b);
-            setPlaced(true);   // ya colocada (sin anim de login)
-            setMode("panel");  // mostramos panel directamente
-          }
-        }
-      } catch {
-        // si falla, mostramos login
-        if (!cancelled) setMode("login");
-      } finally {
-        if (!cancelled) setBooting(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   // ===== LOGIN =====
   const onSubmit = async (e: React.FormEvent) => {
@@ -226,8 +192,8 @@ export default function Page() {
         return;
       }
 
-      // OK → preparar la taza para que NO parpadee en el destino:
-      setPlaced(false);   // oculta/offscreen
+      // OK → preparar la taza para que no parpadee en el destino
+      setPlaced(false);
       clearShatter();
       setCupKey((k) => k + 1);
 
@@ -344,7 +310,7 @@ export default function Page() {
 
   // Tomar café
   const handleBrew = async () => {
-    if (pouring || exiting || spawning) return;
+    if (brewing) return;
     if (!userId) return;
 
     try {
@@ -386,15 +352,6 @@ export default function Page() {
     };
     requestAnimationFrame(step);
   };
-
-  // —— mientras estamos comprobando la sesión, no mostramos login ni panel ——
-  if (booting) {
-    return (
-      <main className="grid min-h-dvh place-items-center px-4">
-        {/* puedes dejarlo vacío o poner un mini-splash si quieres */}
-      </main>
-    );
-  }
 
   return (
     <main className="grid min-h-dvh place-items-center px-4">
@@ -519,7 +476,7 @@ export default function Page() {
                   >
                     <span
                       style={{
-                        color: balance <= 0 ? "#ef4444" : "#10b981",
+                        color: balanceColor,
                         fontWeight: 900,
                         fontSize: Math.max(14, 18 * scale),
                         letterSpacing: ".04em",
@@ -614,13 +571,15 @@ export default function Page() {
 
                 <div className="grid grid-cols-3 gap-4">
                   <button
-                    className="cafe-tile-primary cafe-tile"
+                    className={`cafe-tile cafe-tile-primary ${brewing ? "cafe-tile-brewing" : ""}`}
                     type="button"
                     onClick={handleBrew}
-                    disabled={pouring || exiting || spawning}
+                    disabled={brewing}
+                    aria-busy={brewing}
+                    title={brewing ? "Preparando…" : "Tomar"}
                   >
-                    <CoffeeIcon className="h-6 w-6" />
-                    <span>Tomar</span>
+                    <CoffeeIcon className={`h-6 w-6 ${brewing ? "brew-spin" : ""}`} />
+                    <span>{brewing ? "Preparando…" : "Tomar"}</span>
                   </button>
 
                   <button
