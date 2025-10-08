@@ -5,38 +5,35 @@ const API_BASE = process.env.COFFEE_API_BASE ?? "https://mjgest.mjdevs.com";
 
 export async function GET(
   _req: Request,
-  { params }: { params: { userId?: string } }
+  ctx: { params: Promise<{ userId?: string }> } // 👈 params ahora es Promise
 ) {
-  const userId = params.userId;
+  const { userId } = await ctx.params;           // 👈 hay que await
   if (!userId) {
-    return NextResponse.json({ ok: false, error: "userId requerido" }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, error: "userId requerido" },
+      { status: 400 }
+    );
   }
 
   try {
     const upstream = await fetch(`${API_BASE}/coffee/users/${userId}/movements`, {
       headers: { accept: "application/json" },
-      // Si necesitas token/cabeceras, añádelas aquí.
-      // headers: { Authorization: `Bearer ${token}`, accept: "application/json" }
       cache: "no-store",
     });
 
-    // Si el servidor devuelve text/plain con JSON, tratamos igual.
     const text = await upstream.text();
     let data: unknown;
     try {
       data = JSON.parse(text);
     } catch {
-      // por si realmente viene text/plain no JSON
-      data = text;
+      data = text; // por si viniera text/plain
     }
 
     return NextResponse.json(data, {
       status: upstream.ok ? 200 : upstream.status,
-      headers: {
-        "Cache-Control": "no-store",
-      },
+      headers: { "Cache-Control": "no-store" },
     });
-  } catch (e) {
+  } catch {
     return NextResponse.json(
       { ok: false, error: "Fallo al contactar con el servidor externo" },
       { status: 502 }

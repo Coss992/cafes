@@ -11,7 +11,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Credenciales requeridas" }, { status: 400 });
     }
 
-    // La API espera "login" y "password" (según tu captura)
+    // La API espera "login" y "password"
     const upstream = await fetch(`${BASE_URL}/users/login`, {
       method: "POST",
       headers: {
@@ -21,41 +21,48 @@ export async function POST(req: Request) {
       body: JSON.stringify({ login: email, password }),
     });
 
-    if (!upstream.ok) {
-      const msg = await safeJson(upstream);
+    const user = await upstream.json().catch(() => null);
+
+    if (!upstream.ok || !user) {
       return NextResponse.json(
-        { ok: false, error: msg?.message || "Login inválido" },
+        { ok: false, error: user?.message || "Login inválido" },
         { status: upstream.status || 401 }
       );
     }
 
-    // Intenta leer el body (según swagger, devuelve un objeto "User")
-    const user = await safeJson(upstream);
-
-    // Si tu backend devolviera un token (p. ej. user.token), úsalo.
-    // Si no hay token, creamos uno mock local atado al email para manejar sesión en el cliente.
+    // Token (si el backend no lo devuelve, generamos uno mock)
     const token =
       (user && (user.token || user.accessToken)) ||
       `mj-${Buffer.from(`${email}:${Date.now()}`).toString("base64url")}`;
 
     const res = NextResponse.json({ ok: true, user });
 
+    // Tu cookie original (token)
     res.cookies.set({
       name: "session",
       value: token,
       httpOnly: true,
       sameSite: "lax",
-      secure: true,
+      secure: process.env.NODE_ENV === "production",
       path: "/",
-      maxAge: 60 * 60 * 24 * 7, // 7 días
+      maxAge: 60 * 60 * 24 * 7,
+    });
+
+    // NUEVA cookie con info mínima para rehidratar sesión al cargar
+    const userId = user?.id ?? user?.user?.id; // por si viene anidado
+    const login = user?.login ?? user?.user?.login ?? email;
+    res.cookies.set({
+      name: "coffee_session",
+      value: JSON.stringify({ userId, login }),
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
     });
 
     return res;
-  } catch (err) {
+  } catch {
     return NextResponse.json({ ok: false, error: "Error de red" }, { status: 500 });
   }
-}
-
-async function safeJson(res: Response) {
-  try { return await res.json(); } catch { return null; }
 }

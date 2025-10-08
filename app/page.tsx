@@ -77,12 +77,15 @@ async function fetchBalance(uid: number): Promise<number | null> {
 }
 
 export default function Page() {
+  // —— fase de arranque para evitar flicker ——
+  const [booting, setBooting] = useState(true);
+
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [placed, setPlaced] = useState(false);
   const [mode, setMode] = useState<Mode>("login");
-  const [btnMsg, setBtnMsg] = useState<string | null>(null);
+  const [btnMsg, setBtnMsg] = useState<string | null>(null); // mensaje temporal del botón
 
   // Datos del usuario
   const [userName, setUserName] = useState<string>("");
@@ -103,7 +106,7 @@ export default function Page() {
   }, []);
 
   // ===== Geometría cafetera =====
-  const baseW = 420;
+  const baseW = 512;
   const scale = machineW / baseW;
 
   const BAY = { x: 135, y: 130, w: 150, h: 180 };
@@ -162,6 +165,40 @@ export default function Page() {
   >([]);
   const [piecesGo, setPiecesGo] = useState(false);
 
+  // ========= Comprobación de sesión en el arranque =========
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/session", { cache: "no-store" });
+        const data = await res.json().catch(() => null);
+        if (!data?.ok || !data?.user?.id) {
+          // sin sesión → mostramos login
+          if (!cancelled) setMode("login");
+        } else {
+          // sesión válida → cargamos usuario y balance, y vamos directo al panel
+          const uid: number = data.user.id;
+          if (!cancelled) {
+            setUserId(uid);
+            setUserName(String(data.user.login || "").toUpperCase());
+            const b = await fetchBalance(uid);
+            if (b != null) setBalance(b);
+            setPlaced(true);   // ya colocada (sin anim de login)
+            setMode("panel");  // mostramos panel directamente
+          }
+        }
+      } catch {
+        // si falla, mostramos login
+        if (!cancelled) setMode("login");
+      } finally {
+        if (!cancelled) setBooting(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // ===== LOGIN =====
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -190,13 +227,10 @@ export default function Page() {
       }
 
       // OK → preparar la taza para que NO parpadee en el destino:
-      // 1) dejarla oculta/offscreen
-      setPlaced(false);
-      // 2) limpiar rotura y trozos
+      setPlaced(false);   // oculta/offscreen
       clearShatter();
-      // 3) forzar remount para reiniciar transiciones
       setCupKey((k) => k + 1);
-      // 4) cargar datos usuario
+
       const uid = data.user?.id ?? null;
       setUserId(uid);
       setUserName((data.user?.login || username).toUpperCase());
@@ -204,7 +238,7 @@ export default function Page() {
         const b = await fetchBalance(uid);
         if (b != null) setBalance(b);
       }
-      // 5) modo y arranque de entrada con rAF (ya partimos de placed=false)
+
       setMode("placing");
       requestAnimationFrame(() => setPlaced(true));
 
@@ -235,10 +269,8 @@ export default function Page() {
   // Fuerza: 1) reentrada de la taza desde la derecha 2) explosión
   function triggerShatterCycle() {
     clearShatter();
-    // re-disparar la animación de entrada previa a explotar
     setPlaced(false);
     requestAnimationFrame(() => setPlaced(true));
-    // cuando acabe de entrar, generamos piezas y estallamos
     setTimeout(() => {
       const count = 16;
       const newPieces = Array.from({ length: count }, (_, i) => {
@@ -253,7 +285,6 @@ export default function Page() {
       setPieces(newPieces);
       setShattered(true);
       requestAnimationFrame(() => setPiecesGo(true));
-      // no respawn hasta login correcto
     }, ENTER_MS + 20);
   }
 
@@ -355,6 +386,15 @@ export default function Page() {
     };
     requestAnimationFrame(step);
   };
+
+  // —— mientras estamos comprobando la sesión, no mostramos login ni panel ——
+  if (booting) {
+    return (
+      <main className="grid min-h-dvh place-items-center px-4">
+        {/* puedes dejarlo vacío o poner un mini-splash si quieres */}
+      </main>
+    );
+  }
 
   return (
     <main className="grid min-h-dvh place-items-center px-4">
@@ -479,7 +519,7 @@ export default function Page() {
                   >
                     <span
                       style={{
-                        color: balanceColor,
+                        color: balance <= 0 ? "#ef4444" : "#10b981",
                         fontWeight: 900,
                         fontSize: Math.max(14, 18 * scale),
                         letterSpacing: ".04em",
@@ -556,7 +596,7 @@ export default function Page() {
                     Cafetera de {userName || "USUARIO"}
                   </h2>
 
-                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2">
                     <Button variant="secondary" size="icon" className="rounded-full" title="Historial">
                       <History className="h-4 w-4" />
                     </Button>
