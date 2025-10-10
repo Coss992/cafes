@@ -1,9 +1,8 @@
-// app/api/logout/route.ts
 import { NextResponse } from "next/server";
 
-function clearSessionCookie() {
+function clearCookie(name: string) {
   return {
-    name: "session",
+    name,
     value: "",
     httpOnly: true,
     sameSite: "lax" as const,
@@ -16,12 +15,17 @@ function clearSessionCookie() {
 
 export async function POST() {
   const res = NextResponse.json({ ok: true });
-  res.cookies.set(clearSessionCookie());
+  // Borra todas las cookies de sesión que puedas haber usado
+  res.cookies.set(clearCookie("session"));
+  res.cookies.set(clearCookie("coffee_session"));
+  res.cookies.set(clearCookie("token"));
   return res;
 }
 
 export async function GET() {
   const res = NextResponse.json({ ok: true });
-  res.cookies.set(clearSessionCookie());
+  res.cookies.set(clearCookie("session"));
+  res.cookies.set(clearCookie("coffee_session"));
+  res.cookies.set(clearCookie("token"));
   return res;
 }

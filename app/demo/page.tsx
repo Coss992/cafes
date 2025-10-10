@@ -1,15 +1,7 @@
-// app/page.tsx (o la ruta donde tengas tu Page)
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  Coffee,
-  LogOut,
-  History,
-  CoffeeIcon,
-  RefreshCw,
-  DollarSign,
-} from "lucide-react";
+import { Coffee, LogOut, History, CoffeeIcon, RefreshCw, DollarSign } from "lucide-react";
 import { motion, useAnimationControls } from "framer-motion"; // ==== ANIM CAPSULES ====
 import CoffeeMachine from "@/components/CoffeeMachine";
 import CoffeeMug from "@/components/CoffeeMug";
@@ -21,32 +13,32 @@ import { Label } from "@/components/ui/label";
 // ==== ANIM CAPSULES ====
 type CSSNum = number | string;
 const DOOR = {
-  top: "6.2%" as CSSNum, // ajusta según tu SVG
+  top: "6.2%" as CSSNum,  // ajusta según tu SVG
   left: "50%" as CSSNum,
   width: 120,
   height: 10,
   radius: 8,
   color: "#95a1b2",
-  lift: 20, // cuánto sube la tapa al abrir
+  lift: 20,               // cuánto sube la tapa al abrir
   tOpen: 0.28,
   tClose: 0.24,
   ease: [0.2, 0.8, 0.2, 1] as [number, number, number, number],
   shadow: "0 2px 6px rgba(0,0,0,.25)",
-  zIndex: 0, // por delante de la máquina (z-10) y por detrás de la taza (z-30)
+  zIndex: 20,            // por delante de la máquina (z-10) y por detrás de la taza (z-30)
 };
 const CAPSULE = {
   top: "-20%" as CSSNum, // arranca bien arriba
   left: "50%" as CSSNum,
   size: 56,
-  drop: 150, // caída vertical (px)
-  tDrop: 0.55, // duración base
-  tDropMin: 0.2, // mínimo
-  rotateMax: 0, // 0 = recto
+  drop: 150,            // caída vertical (px)
+  tDrop: 0.55,          // duración base
+  tDropMin: 0.20,       // mínimo
+  rotateMax: 0,         // 0 = recto
   anchor: "center" as "center" | "topleft",
 };
 const BATCH = {
-  gapMsBase: 100, // pausa base entre cápsulas
-  speedup: 0.92, // 0.92 => cada cápsula un 8% más rápida; ajustable en tiempo real
+  gapMsBase: 100,       // pausa base entre cápsulas
+  speedup: 0.92,        // 0.92 => cada cápsula un 8% más rápida; ajustable en tiempo real
 };
 /* ================================================================ */
 
@@ -65,11 +57,7 @@ type ApiSessionResponse = {
 
 type MovementsResp = { balance_Coffees: number | string };
 function isMovementsResp(d: unknown): d is MovementsResp {
-  return (
-    typeof d === "object" &&
-    d !== null &&
-    "balance_Coffees" in (d as Record<string, unknown>)
-  );
+  return typeof d === "object" && d !== null && "balance_Coffees" in (d as Record<string, unknown>);
 }
 
 type StyleWithVars = React.CSSProperties & { ["--capsule-w"]?: string };
@@ -145,10 +133,8 @@ export default function Page() {
   const [userName, setUserName] = useState<string>("");
   const [userId, setUserId] = useState<number | null>(null);
 
-  // Balance (real)
+  // Balance
   const [balance, setBalance] = useState<number>(0);
-  // Contador mostrado (animado durante recarga). Si es null, muestra balance real.
-  const [counterDisplay, setCounterDisplay] = useState<number | null>(null);
 
   // Máquina
   const machineRef = useRef<HTMLDivElement>(null);
@@ -245,14 +231,7 @@ export default function Page() {
   // SHATTER (login fail)
   const [shattered, setShattered] = useState(false);
   const [pieces, setPieces] = useState<
-    {
-      id: number;
-      dx: number;
-      dy: number;
-      rot: number;
-      delay: number;
-      size: number;
-    }[]
+    { id: number; dx: number; dy: number; rot: number; delay: number; size: number }[]
   >([]);
   const [piecesGo, setPiecesGo] = useState(false);
 
@@ -290,10 +269,7 @@ export default function Page() {
   const dropDuration = (index: number, speedup = BATCH.speedup) =>
     Math.max(CAPSULE.tDropMin, CAPSULE.tDrop * Math.pow(speedup, index));
 
-  async function runCapsuleBatch(
-    count: number,
-    onCapsule?: (index: number) => void
-  ) {
+  async function runCapsuleBatch(count: number) {
     if (animRunningRef.current) return;
     animRunningRef.current = true;
     try {
@@ -308,21 +284,17 @@ export default function Page() {
         transition: { duration: DOOR.tOpen, ease: DOOR.ease },
       });
 
-      // Cascada de cápsulas con speedup
-      const speed = count > 1 ? BATCH.speedup : 1;
+      // Cascada de cápsulas
+      const speedup = count > 1 ? BATCH.speedup : 1;
       for (let i = 0; i < count; i++) {
         await capsuleControls.start({
           opacity: 1,
           y: CAPSULE.drop,
           rotate: CAPSULE.rotateMax,
-          transition: { duration: dropDuration(i, speed), ease: "easeIn" },
+          transition: { duration: dropDuration(i, speedup), ease: "easeIn" },
         });
-
         // ocultar + volver arriba instantáneo
         capsuleControls.set({ opacity: 0, y: 0, rotate: 0 });
-
-        // 🔔 avisamos que “ha entrado” una cápsula
-        if (onCapsule) onCapsule(i);
 
         const gapMs = Math.max(40, BATCH.gapMsBase - i * 4); // leve reducción del gap
         if (i < count - 1 && gapMs > 0) await delay(gapMs);
@@ -351,14 +323,8 @@ export default function Page() {
     setRechargeOpen(false);
     setRechargeSending(true);
 
-    // valor de partida que mostramos durante la animación
-    const startVal = counterDisplay ?? balance;
-    setCounterDisplay(startVal);
-
-    // Dispara animación y, por cada cápsula, incrementa el display
-    const animPromise = runCapsuleBatch(coffees, () => {
-      setCounterDisplay((v) => (v == null ? startVal + 1 : v + 1));
-    });
+    // Dispara animación en paralelo al API
+    const animPromise = runCapsuleBatch(coffees);
 
     try {
       const { ok } = await createRechargeCoffees(userId, coffees);
@@ -367,9 +333,8 @@ export default function Page() {
         if (b != null) setBalance(b);
       }
     } finally {
+      // Espera a que la animación termine de cerrar la puerta (sin bloquear si ya terminó)
       await animPromise.catch(() => {});
-      // al terminar, vuelve a mostrar el balance real
-      setCounterDisplay(null);
       setRechargeSending(false);
     }
   }
@@ -468,7 +433,6 @@ export default function Page() {
       setUserName("");
       setUserId(null);
       setBalance(0);
-      setCounterDisplay(null);
 
       // Reset taza
       setCupLevel(0);
@@ -490,8 +454,7 @@ export default function Page() {
   const rawHeight = Math.max(6, liquidTopPx - SPOUT_OUTLET.y * scale);
   const heightWithFactor = rawHeight * STREAM_LENGTH_FACTOR;
   const streamHeight = Math.min(heightWithFactor, STREAM_MAX_PX * scale);
-  const visibleStream =
-    pouring && !exiting && liquidTopPx > SPOUT_OUTLET.y * scale + 6 * scale;
+  const visibleStream = pouring && !exiting && liquidTopPx > SPOUT_OUTLET.y * scale + 6 * scale;
 
   const baseDx = targetLeft - startLeft;
   const baseDy = targetTop - startTop;
@@ -505,8 +468,7 @@ export default function Page() {
   function cupTransition(): string | undefined {
     const active = placed || exiting || spawning;
     return active
-      ? `transform ${
-          exiting ? DURATION_EXIT : spawning ? DURATION_SPAWN : ENTER_MS
+      ? `transform ${exiting ? DURATION_EXIT : spawning ? DURATION_SPAWN : ENTER_MS
         }ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease`
       : undefined;
   }
@@ -569,9 +531,7 @@ export default function Page() {
             <span className="grid h-12 w-12 place-items-center rounded-full bg-white shadow ring-1 ring-black/5">
               <Coffee className="h-7 w-7 text-amber-700" />
             </span>
-            <h1 className="cafe-title leading-none text-5xl font-extrabold md:text-6xl">
-              CONTROL DE CAFÉS
-            </h1>
+            <h1 className="cafe-title leading-none text-5xl font-extrabold md:text-6xl">CONTROL DE CAFÉS</h1>
           </div>
         </div>
 
@@ -580,11 +540,7 @@ export default function Page() {
           <div className="grid gap-10 md:grid-cols-2">
             {/* Máquina */}
             <div className="mx-auto w-full max-w-[760px]">
-              <div
-                ref={machineRef}
-                className="relative mx-auto w-full max-w-[720px] overflow-visible machine-stage"
-                style={{ overflow: "visible" }}
-              >
+              <div ref={machineRef} className="relative mx-auto w/full max-w-[720px] overflow-hidden">
                 {/* CÁPSULA (detrás de la máquina) */}
                 {/* ==== ANIM CAPSULES ==== */}
                 <CapsuleLayer controls={useAnimationProxy(capsuleControls)} />
@@ -628,19 +584,12 @@ export default function Page() {
                 {shattered && (
                   <div
                     className="absolute pointer-events-none z-30"
-                    style={{
-                      left: startLeft,
-                      top: startTop,
-                      width: mugWidth,
-                      height: mugHeight,
-                    }}
+                    style={{ left: startLeft, top: startTop, width: mugWidth, height: mugHeight }}
                   >
                     <div
                       style={{
                         position: "relative",
-                        transform: `translate(${targetLeft - startLeft}px, ${
-                          targetTop - startTop
-                        }px)`,
+                        transform: `translate(${targetLeft - startLeft}px, ${targetTop - startTop}px)`,
                         width: mugWidth,
                         height: mugHeight,
                       }}
@@ -654,8 +603,7 @@ export default function Page() {
                             top: mugHeight * 0.55 - p.size / 2,
                             width: p.size,
                             height: p.size,
-                            background:
-                              "linear-gradient(180deg, #fafafa, #ddd)",
+                            background: "linear-gradient(180deg, #fafafa, #ddd)",
                             border: "1px solid rgba(0,0,0,.12)",
                             borderRadius: 2,
                             boxShadow: "0 6px 14px rgba(0,0,0,.25)",
@@ -681,12 +629,7 @@ export default function Page() {
                       top: SPOUT_OUTLET.y * scale,
                       width: STREAM_WIDTH * scale,
                       height: Math.min(
-                        Math.max(
-                          6,
-                          targetTop +
-                            mugHeight * (1 - cupLevel) -
-                            SPOUT_OUTLET.y * scale
-                        ),
+                        Math.max(6, targetTop + mugHeight * (1 - cupLevel) - SPOUT_OUTLET.y * scale),
                         STREAM_MAX_PX * scale
                       ),
                       background: STREAM_COLOR,
@@ -709,21 +652,17 @@ export default function Page() {
                   >
                     <span
                       style={{
-                        color:
-                          (counterDisplay ?? balance) <= 0
-                            ? "#ef4444"
-                            : "#10b981",
+                        color: balance <= 0 ? "#ef4444" : "#10b981",
                         fontWeight: 900,
                         fontSize: Math.max(14, 18 * scale),
                         letterSpacing: ".04em",
-                        textShadow:
-                          "0 2px 6px rgba(0,0,0,.35), 0 0 1px rgba(0,0,0,.6)",
+                        textShadow: "0 2px 6px rgba(0,0,0,.35), 0 0 1px rgba(0,0,0,.6)",
                         WebkitTextStrokeWidth: 0.6,
                         WebkitTextStrokeColor: "rgba(0,0,0,.25)",
                       }}
                       title="Cafés disponibles"
                     >
-                      {counterDisplay ?? balance}
+                      {balance ?? 0}
                     </span>
                   </div>
                 )}
@@ -732,15 +671,9 @@ export default function Page() {
 
             {/* Columna derecha */}
             {mode === "login" ? (
-              <form
-                onSubmit={onSubmit}
-                className="mx-auto grid w-full max-w-md content-center gap-5 min-h-[420px]"
-              >
+              <form onSubmit={onSubmit} className="mx-auto grid w/full max-w-md content-center gap-5 min-h-[420px]">
                 <div className="space-y-2">
-                  <Label
-                    htmlFor="username"
-                    className="text-[13px] text-zinc-700"
-                  >
+                  <Label htmlFor="username" className="text-[13px] text-zinc-700">
                     Usuario
                   </Label>
                   <Input
@@ -755,10 +688,7 @@ export default function Page() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label
-                    htmlFor="password"
-                    className="text-[13px] text-zinc-700"
-                  >
+                  <Label htmlFor="password" className="text-[13px] text-zinc-700">
                     Contraseña
                   </Label>
                   <Input
@@ -772,13 +702,7 @@ export default function Page() {
                   />
                 </div>
 
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  className={`cafe-cta w-full ${
-                    btnMsg ? "cafe-cta-error" : ""
-                  }`}
-                >
+                <Button type="submit" disabled={loading} className={`cafe-cta w-full ${btnMsg ? "cafe-cta-error" : ""}`}>
                   <span className="relative z-10 flex items-center justify-center gap-3">
                     <Coffee className="icon h-5 w-5" />
                     {btnMsg ?? (loading ? "Verificando…" : "Colocar taza")}
@@ -786,19 +710,14 @@ export default function Page() {
                 </Button>
               </form>
             ) : (
-              <div className="mx-auto grid w-full max-w-md content-center gap-6 min-h-[420px]">
-                <div className="flex items-center justify-between">
+              <div className="mx-auto grid w/full max-w-md content-center gap-6 min-h-[420px]">
+                <div className="flex itemscenter justify-between">
                   <h2 className="text-xl font-extrabold text-zinc-800">
                     Cafetera de {userName || "USUARIO"}
                   </h2>
 
                   <div className="flex items-center gap-2">
-                    <Button
-                      variant="secondary"
-                      size="icon"
-                      className="rounded-full"
-                      title="Historial"
-                    >
+                    <Button variant="secondary" size="icon" className="rounded-full" title="Historial">
                       <History className="h-4 w-4" />
                     </Button>
                     <Button
@@ -816,45 +735,33 @@ export default function Page() {
                 <div className="grid grid-cols-3 gap-4">
                   {/* Tomar */}
                   <button
-                    className={`cafe-tile cafe-tile-primary ${
-                      brewing ? "cafe-tile-brewing" : ""
-                    }`}
+                    className={`cafe-tile cafe-tile-primary ${brewing ? "cafe-tile-brewing" : ""}`}
                     type="button"
                     onClick={handleBrew}
                     disabled={brewing}
                     aria-busy={brewing}
                     title={brewing ? "Preparando…" : "Tomar"}
                   >
-                    <CoffeeIcon
-                      className={`h-6 w-6 ${brewing ? "brew-wobble" : ""}`}
-                    />
+                    <CoffeeIcon className={`h-6 w-6 ${brewing ? "brew-wobble" : ""}`} />
                     <span>{brewing ? "Preparando…" : "Tomar"}</span>
                   </button>
 
                   {/* Recargar */}
                   <button
                     id="btn-recharge"
-                    className={`cafe-tile cafe-tile-dark ${
-                      recharging ? "cafe-tile-brewing" : ""
-                    }`}
+                    className={`cafe-tile cafe-tile-dark ${recharging ? "cafe-tile-brewing" : ""}`}
                     type="button"
                     onClick={openRecharge}
                     disabled={recharging}
                     aria-busy={recharging}
                     title={recharging ? "Recargando…" : "Recargar"}
                   >
-                    <RefreshCw
-                      className={`h-6 w-6 ${recharging ? "brew-wobble" : ""}`}
-                    />
+                    <RefreshCw className={`h-6 w-6 ${recharging ? "brew-wobble" : ""}`} />
                     <span>{recharging ? "Recargando…" : "Recargar"}</span>
                   </button>
 
                   {/* Apostar */}
-                  <button
-                    className="cafe-tile cafe-tile-accent"
-                    type="button"
-                    onClick={() => {}}
-                  >
+                  <button className="cafe-tile cafe-tile-accent" type="button" onClick={() => {}}>
                     <DollarSign className="h-6 w-6" />
                     <span>Apostar</span>
                   </button>
@@ -886,12 +793,9 @@ export default function Page() {
                 className="capsule-input"
                 value={euroInput}
                 onChange={(e) => {
-                  let v = e.target.value
-                    .replace(",", ".")
-                    .replace(/[^\d.]/g, "");
+                  let v = e.target.value.replace(",", ".").replace(/[^\d.]/g, "");
                   const parts = v.split(".");
-                  if (parts[1]?.length > 2)
-                    v = parts[0] + "." + parts[1].slice(0, 2);
+                  if (parts[1]?.length > 2) v = parts[0] + "." + parts[1].slice(0, 2);
                   setEuroInput(v);
                 }}
                 onKeyDown={(e) => {
@@ -905,17 +809,12 @@ export default function Page() {
 
             {!euroValid && (
               <p className="capsule-help">
-                Usa dos decimales y múltiplos de <b>0,50€</b> (0.50, 1.00,
-                1.50…).
+                Usa dos decimales y múltiplos de <b>0,50€</b> (0.50, 1.00, 1.50…).
               </p>
             )}
 
             <div className="capsule-actions">
-              <button
-                className="capsule-btn capsule-cancel"
-                onClick={closeRecharge}
-                disabled={rechargeSending}
-              >
+              <button className="capsule-btn capsule-cancel" onClick={closeRecharge} disabled={rechargeSending}>
                 Cancelar
               </button>
               <button
@@ -935,16 +834,10 @@ export default function Page() {
 
 /* ===================== SUBCOMPONENTES ANIMACIÓN ===================== */
 // Wrapper para poder pasar controls sin perder tipos en inline JSX
-function useAnimationProxy<T>(controls: T) {
-  return controls;
-}
+function useAnimationProxy<T>(controls: T) { return controls; }
 
 // Puerta
-function DoorOverlay({
-  controls,
-}: {
-  controls: ReturnType<typeof useAnimationControls>;
-}) {
+function DoorOverlay({ controls }: { controls: ReturnType<typeof useAnimationControls> }) {
   return (
     <div
       className="pointer-events-none absolute inset-0"
@@ -971,11 +864,7 @@ function DoorOverlay({
 }
 
 // Cápsula
-function CapsuleLayer({
-  controls,
-}: {
-  controls: ReturnType<typeof useAnimationControls>;
-}) {
+function CapsuleLayer({ controls }: { controls: ReturnType<typeof useAnimationControls> }) {
   const anchorTransform =
     CAPSULE.anchor === "center" ? "translate(-50%, -50%)" : "translate(0, 0)";
 
@@ -986,7 +875,7 @@ function CapsuleLayer({
         style={{
           top: CAPSULE.top,
           left: CAPSULE.left,
-          transform: anchorTransform, // anclaje estable
+          transform: anchorTransform,  // anclaje estable
         }}
       >
         <motion.svg
@@ -1012,14 +901,7 @@ function CapsuleLayer({
           </defs>
           <g>
             <ellipse cx="28" cy="10" rx="18" ry="6" fill="url(#capRim)" />
-            <rect
-              x="10"
-              y="10"
-              width="36"
-              height="26"
-              rx="12"
-              fill="url(#capBody)"
-            />
+            <rect x="10" y="10" width="36" height="26" rx="12" fill="url(#capBody)" />
             <ellipse cx="28" cy="36" rx="18" ry="6" fill="#0c0d0f" />
           </g>
         </motion.svg>
