@@ -1,4 +1,4 @@
-// app/page.tsx (o la ruta donde tengas tu Page)
+// app/page.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -242,7 +242,7 @@ export default function Page() {
 
   const brewing = pouring || exiting || spawning;
 
-  // SHATTER (login fail)
+  // SHATTER (login fail + logout)
   const [shattered, setShattered] = useState(false);
   const [pieces, setPieces] = useState<
     {
@@ -255,6 +255,49 @@ export default function Page() {
     }[]
   >([]);
   const [piecesGo, setPiecesGo] = useState(false);
+
+  function clearShatter() {
+    setShattered(false);
+    setPieces([]);
+    setPiecesGo(false);
+  }
+  function triggerShatterCycle() {
+    clearShatter();
+    setPlaced(false);
+    requestAnimationFrame(() => setPlaced(true));
+    setTimeout(() => {
+      const count = 16;
+      const newPieces = Array.from({ length: count }, (_, i) => {
+        const spread = mugWidth * 0.8;
+        const dx = (Math.random() - 0.5) * spread;
+        const dy = Math.random() * mugHeight * 0.8 - mugHeight * 0.3;
+        const rot = (Math.random() - 0.5) * 260;
+        const delay = Math.random() * 90;
+        const size = 6 + Math.random() * 10;
+        return { id: i, dx, dy, rot, delay, size };
+      });
+      setPieces(newPieces);
+      setShattered(true);
+      requestAnimationFrame(() => setPiecesGo(true));
+    }, ENTER_MS + 20);
+  }
+  // Explosión inmediata (para logout)
+  function explodeNow() {
+    clearShatter();
+    const count = 16;
+    const newPieces = Array.from({ length: count }, (_, i) => {
+      const spread = mugWidth * 0.8;
+      const dx = (Math.random() - 0.5) * spread;
+      const dy = Math.random() * mugHeight * 0.8 - mugHeight * 0.3;
+      const rot = (Math.random() - 0.5) * 260;
+      const delay = Math.random() * 90;
+      const size = 6 + Math.random() * 10;
+      return { id: i, dx, dy, rot, delay, size };
+    });
+    setPieces(newPieces);
+    setShattered(true);
+    requestAnimationFrame(() => setPiecesGo(true));
+  }
 
   /* ===== Recarga (modal / API) ===== */
   const [rechargeOpen, setRechargeOpen] = useState(false);
@@ -279,6 +322,11 @@ export default function Page() {
     if (rechargeSending) return;
     setRechargeOpen(false);
   }
+
+  /* ======= Modal Logout ======= */
+  const [logoutOpen, setLogoutOpen] = useState(false);
+  const openLogoutConfirm = () => setLogoutOpen(true);
+  const closeLogoutConfirm = () => setLogoutOpen(false);
 
   /* ===================== ANIM: CONTROLES ===================== */
   // ==== ANIM CAPSULES ====
@@ -429,33 +477,8 @@ export default function Page() {
     setBtnMsg(msg);
     setTimeout(() => setBtnMsg(null), 1600);
   }
-  function clearShatter() {
-    setShattered(false);
-    setPieces([]);
-    setPiecesGo(false);
-  }
-  function triggerShatterCycle() {
-    clearShatter();
-    setPlaced(false);
-    requestAnimationFrame(() => setPlaced(true));
-    setTimeout(() => {
-      const count = 16;
-      const newPieces = Array.from({ length: count }, (_, i) => {
-        const spread = mugWidth * 0.8;
-        const dx = (Math.random() - 0.5) * spread;
-        const dy = Math.random() * mugHeight * 0.8 - mugHeight * 0.3;
-        const rot = (Math.random() - 0.5) * 260;
-        const delay = Math.random() * 90;
-        const size = 6 + Math.random() * 10;
-        return { id: i, dx, dy, rot, delay, size };
-      });
-      setPieces(newPieces);
-      setShattered(true);
-      requestAnimationFrame(() => setPiecesGo(true));
-    }, ENTER_MS + 20);
-  }
 
-  // ==== LOGOUT ====
+  // ==== LOGOUT real (reseteo de app) ====
   const handleLogout = async () => {
     if (loading) return;
     setLoading(true);
@@ -480,8 +503,18 @@ export default function Page() {
       setRechargeOpen(false);
       setRechargeSending(false);
 
+      clearShatter();
       setLoading(false);
     }
+  };
+
+  // Confirmación: explota y luego cierra sesión
+  const confirmLogout = async () => {
+    closeLogoutConfirm();
+    explodeNow(); // anim inmediata
+    // dejar que la animación de piezas ocurra (≈620ms + delays)
+    await delay(750);
+    await handleLogout();
   };
 
   /* ===== Servir café ===== */
@@ -796,17 +829,18 @@ export default function Page() {
                     <Button
                       variant="secondary"
                       size="icon"
-                      className="rounded-full"
+                      className="rounded-full cursor-pointer"
                       title="Historial"
+                      onClick={() => {}}
                     >
                       <History className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="secondary"
                       size="icon"
-                      className="rounded-full"
+                      className="rounded-full cursor-pointer"
                       title="Cerrar sesión"
-                      onClick={handleLogout}
+                      onClick={openLogoutConfirm}
                     >
                       <LogOut className="h-4 w-4" />
                     </Button>
@@ -924,6 +958,42 @@ export default function Page() {
                 disabled={!euroValid || rechargeSending}
               >
                 {rechargeSending ? "Procesando…" : "Aceptar"}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Modal logout */}
+      {logoutOpen && (
+        <>
+          <div className="modal-backdrop" onClick={closeLogoutConfirm} />
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="capsule-modal"
+            style={modalStyle}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="capsule-head">¿Cerrar sesión?</div>
+            <p className="capsule-help" style={{ marginTop: 6 }}>
+              Se cerrará tu sesión y volverás a la pantalla de inicio.
+            </p>
+
+            <div className="capsule-actions">
+              <button
+                className="capsule-btn capsule-cancel"
+                onClick={closeLogoutConfirm}
+                disabled={loading}
+              >
+                Cancelar
+              </button>
+              <button
+                className="capsule-btn capsule-accept"
+                onClick={confirmLogout}
+                disabled={loading}
+              >
+                Sí, cerrar sesión
               </button>
             </div>
           </div>
